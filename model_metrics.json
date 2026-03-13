@@ -1,0 +1,26 @@
+[
+  {
+    "model": "Loan Fraud (RandomForest)",
+    "accuracy": 1.0,
+    "precision": 1.0,
+    "recall": 1.0,
+    "f1": 1.0,
+    "roc_auc": 1.0
+  },
+  {
+    "model": "Transaction Fraud (GradientBoosting)",
+    "accuracy": 0.9913,
+    "precision": 0.5899,
+    "recall": 0.5256,
+    "f1": 0.5559,
+    "roc_auc": 0.795
+  },
+  {
+    "model": "Combined Risk (RandomForest)",
+    "accuracy": 1.0,
+    "precision": 1.0,
+    "recall": 1.0,
+    "f1": 1.0,
+    "roc_auc": 1.0
+  }
+]
