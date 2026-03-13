@@ -56,7 +56,7 @@ def load_and_clean():
         st.stop()
 
     # ── Clean loans ──────────────────────────────────────────────────────────
-    loans = pd.read_csv(LOANS_CSV)
+    loans = pd.read_csv("loan_applications.csv")
     loans["fraud_type"]        = loans["fraud_type"].fillna("None")
     loans["application_date"]  = pd.to_datetime(loans["application_date"])
     loans["loan_amount_requested"] = loans["loan_amount_requested"].abs()
@@ -69,7 +69,7 @@ def load_and_clean():
     # ── Clean transactions ────────────────────────────────────────────────────
     txns = None
     if TXN_CSV.exists():
-        txns = pd.read_csv(TXN_CSV)
+        txns = pd.read_csv("transactions.csv")
         txns["transaction_date"] = pd.to_datetime(txns["transaction_date"])
         for col in ["transaction_id","customer_id","transaction_status",
                     "transaction_type","merchant_category"]:
