@@ -5,10 +5,10 @@ Mirrors the logic in data_cleaning.sql using pandas.
 import pandas as pd
 import os
 
-RAW_LOANS_PATH = "data/loan_applications.csv"
-RAW_TXN_PATH   = "data/transactions.csv"
-OUT_LOANS_PATH = "outputs/loan_applications_filtered.csv"
-OUT_TXN_PATH   = "outputs/transactions_cleaned.csv"
+RAW_LOANS_PATH = "loan_applications.csv"
+RAW_TXN_PATH   = "transactions.csv"
+OUT_LOANS_PATH = "loan_applications_filtered.csv"
+OUT_TXN_PATH   = "transactions_cleaned.csv"
 
 
 def clean_loans(df: pd.DataFrame) -> pd.DataFrame:
