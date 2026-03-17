@@ -7,7 +7,7 @@ Pages:
   3. Behavioral Risk Analysis
   4. ML Predictions & Model Performance
 """
-from clean import run_cleaning
+
 import os, json
 import streamlit as st
 import pandas as pd
@@ -112,18 +112,7 @@ if not has_txns:
 
 page = st.sidebar.radio("Go to", pages)
 
-# ── Re-run pipeline button ───────────────────────────────────────────────────
-st.sidebar.markdown("---")
-if st.sidebar.button("🔄 Re-run Pipeline"):
-    import subprocess
-    with st.spinner("Running pipeline (clean + train)..."):
-        r = subprocess.run(["python", "pipeline_runner.py"], capture_output=True, text=True)
-    if r.returncode == 0:
-        st.cache_data.clear()
-        st.success("Pipeline complete! Data refreshed.")
-        st.rerun()
-    else:
-        st.error(f"Pipeline failed:\n{r.stderr}")
+
 
 # ── Filters ──────────────────────────────────────────────────────────────────
 st.sidebar.title("🔍 Filters")
