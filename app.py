@@ -150,11 +150,6 @@ if has_txns:
     if state_filter and "State" in filtered_txns.columns:
         filtered_txns = filtered_txns[filtered_txns["State"].isin(state_filter)]
 
-
-# ════════════════════════════════════════════════════════════════════════
-with col1:
-    if st.button("🧹 Clear Filters"):
-    reset_all_filters()
 # ════════════════════════════════════════════════════════════════════════
 # PAGE 1 — Executive Loan Portfolio
 # ════════════════════════════════════════════════════════════════════════
