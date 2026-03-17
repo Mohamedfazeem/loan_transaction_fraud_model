@@ -23,8 +23,8 @@ from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
 
 warnings.filterwarnings("ignore")
 
-LOANS_PATH = "loan_applications_filtered.csv"
-TXN_PATH   = "transactions_cleaned.csv"
+LOANS_PATH = "outputs/loan_applications_filtered.csv"
+TXN_PATH   = "outputs/transactions_cleaned.csv"
 
 
 # ─── helpers ────────────────────────────────────────────────────────────────
