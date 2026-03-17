@@ -7,7 +7,7 @@ Pages:
   3. Behavioral Risk Analysis
   4. ML Predictions & Model Performance
 """
-
+from clean import run_cleaning
 import os, json
 import streamlit as st
 import pandas as pd
