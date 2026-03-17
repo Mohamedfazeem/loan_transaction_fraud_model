@@ -70,15 +70,15 @@ def run_cleaning() -> dict:
         # ────────────────────────────────────────────────────────────────────
 
         txn_clean.to_csv(OUT_TXN_PATH, index=False)
-        print(f"[clean] ✓ Transactions saved → {OUT_TXN_PATH}")
+        print(f"[clean] Transactions saved -> {OUT_TXN_PATH}")
         results["transactions"] = txn_clean
     else:
-        print(f"[clean] ⚠ transactions.csv not found in data/ — skipping filter.")
+        print(f"[clean] Warning: transactions.csv not found in data/ - skipping filter.")
         results["transactions"] = None
 
     # 3. Save Loans (Now filtered)
     loans_clean.to_csv(OUT_LOANS_PATH, index=False)
-    print(f"[clean] ✓ Loans saved → {OUT_LOANS_PATH}")
+    print(f"[clean] Loans saved -> {OUT_LOANS_PATH}")
     results["loans"] = loans_clean
 
     return results

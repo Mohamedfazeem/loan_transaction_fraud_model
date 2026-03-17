@@ -112,18 +112,19 @@ if not has_txns:
 
 page = st.sidebar.radio("Go to", pages)
 
-# ── Re-run pipeline button ───────────────────────────────────────────────────
-st.sidebar.markdown("---")
-if st.sidebar.button("🔄 Re-run Pipeline"):
-    import subprocess
-    with st.spinner("Running pipeline (clean + train)..."):
-        r = subprocess.run(["python", "pipeline_runner.py"], capture_output=True, text=True)
-    if r.returncode == 0:
-        st.cache_data.clear()
-        st.success("Pipeline complete! Data refreshed.")
-        st.rerun()
-    else:
-        st.error(f"Pipeline failed:\n{r.stderr}")
+<<<<<<< HEAD
+# ── Reset Logic ──────────────────────────────────────────────────────────────
+def reset_all_filters():
+    # This must match the 'key' strings used in the widgets below
+    for key in ["loan_type", "emp_status", "gender", "device", "state"]:
+        if key in st.session_state:
+            st.session_state[key] = []
+    # Reset date range to defaults
+    st.session_state["date_range"] = [loan_df["application_date"].min(), loan_df["application_date"].max()]
+    st.rerun()
+=======
+
+>>>>>>> 42585568b04bd4e2e3e012a1aa9987999365d3f6
 
 # ── Filters ──────────────────────────────────────────────────────────────────
 st.sidebar.title("🔍 Filters")
@@ -161,7 +162,11 @@ if has_txns:
     if state_filter and "State" in filtered_txns.columns:
         filtered_txns = filtered_txns[filtered_txns["State"].isin(state_filter)]
 
-
+st.sidebar.markdown("---")
+col1 = st.sidebar.columns(1)
+with col1:
+    if st.button("🧹 Clear Filters"):
+        reset_all_filters()
 # ════════════════════════════════════════════════════════════════════════
 # PAGE 1 — Executive Loan Portfolio
 # ════════════════════════════════════════════════════════════════════════
