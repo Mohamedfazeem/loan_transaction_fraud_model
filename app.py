@@ -112,8 +112,16 @@ if not has_txns:
 
 page = st.sidebar.radio("Go to", pages)
 
-
-
+def reset_all_filters():
+    st.session_state['filters'] = {
+        'loan_type': [],
+        'employment': [],
+        'gender': [],
+        'date_range': [loan_df["application_date"].min(), loan_df["application_date"].max()]
+    }
+if st.sidebar.button("🧹 Clear All Filters"):
+    reset_all_filters()
+    st.rerun()
 # ── Filters ──────────────────────────────────────────────────────────────────
 st.sidebar.title("🔍 Filters")
 loan_type_filter  = st.sidebar.multiselect("Loan Type",         loan_df["loan_type"].unique())
@@ -150,11 +158,11 @@ if has_txns:
     if state_filter and "State" in filtered_txns.columns:
         filtered_txns = filtered_txns[filtered_txns["State"].isin(state_filter)]
 
-st.sidebar.markdown("---")
-col1 = st.sidebar.columns(1)
+
+# ════════════════════════════════════════════════════════════════════════
 with col1:
     if st.button("🧹 Clear Filters"):
-        reset_all_filters()
+    reset_all_filters()
 # ════════════════════════════════════════════════════════════════════════
 # PAGE 1 — Executive Loan Portfolio
 # ════════════════════════════════════════════════════════════════════════
