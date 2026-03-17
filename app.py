@@ -112,19 +112,7 @@ if not has_txns:
 
 page = st.sidebar.radio("Go to", pages)
 
-<<<<<<< HEAD
-# ── Reset Logic ──────────────────────────────────────────────────────────────
-def reset_all_filters():
-    # This must match the 'key' strings used in the widgets below
-    for key in ["loan_type", "emp_status", "gender", "device", "state"]:
-        if key in st.session_state:
-            st.session_state[key] = []
-    # Reset date range to defaults
-    st.session_state["date_range"] = [loan_df["application_date"].min(), loan_df["application_date"].max()]
-    st.rerun()
-=======
 
->>>>>>> 42585568b04bd4e2e3e012a1aa9987999365d3f6
 
 # ── Filters ──────────────────────────────────────────────────────────────────
 st.sidebar.title("🔍 Filters")
