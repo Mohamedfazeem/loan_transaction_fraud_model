@@ -105,32 +105,70 @@ pages = [
     "Executive Loan Portfolio",
     "Fraud Intelligence & Risk Mitigation",
     "Behavioral Risk Analysis",
-    "🤖 ML Predictions & Model Performance",
+    "ML Predictions & Model Performance",
+    "⚡ Real-Time Risk Scanner",
 ]
 if not has_txns:
     pages.remove("Behavioral Risk Analysis")
 
 page = st.sidebar.radio("Go to", pages)
 
+# ── Reset Logic ──────────────────────────────────────────────────────────────
+def reset_all_filters():
+    # This must match the 'key' strings used in the widgets below
+    for key in ["loan_type", "emp_status", "gender", "device", "state"]:
+        if key in st.session_state:
+            st.session_state[key] = []
+    # Reset date range to defaults
+    st.session_state["date_range"] = [loan_df["application_date"].min(), loan_df["application_date"].max()]
+    st.rerun()
 
+# ── Re-run pipeline button ───────────────────────────────────────────────────
+st.sidebar.markdown("---")
+if st.sidebar.button("🧹 Clear Filters"):
+        reset_all_filters()
 
 # ── Filters ──────────────────────────────────────────────────────────────────
 st.sidebar.title("🔍 Filters")
-loan_type_filter  = st.sidebar.multiselect("Loan Type",         loan_df["loan_type"].unique())
-employment_filter = st.sidebar.multiselect("Employment Status", loan_df["employment_status"].unique())
-gender_filter     = st.sidebar.multiselect("Gender",            loan_df["gender"].unique())
+
+# IMPORTANT: Added 'key' to each widget so reset_all_filters() can control them
+loan_type_filter = st.sidebar.multiselect(
+    "Loan Type", 
+    options=loan_df["loan_type"].unique(), 
+    key="loan_type"
+)
+
+employment_filter = st.sidebar.multiselect(
+    "Employment Status", 
+    options=loan_df["employment_status"].unique(), 
+    key="emp_status"
+)
+
+gender_filter = st.sidebar.multiselect(
+    "Gender", 
+    options=loan_df["gender"].unique(), 
+    key="gender"
+)
 
 if has_txns:
-    device_filter = st.sidebar.multiselect("Device",
-        txn_df["device_used"].unique() if "device_used" in txn_df.columns else [])
-    state_filter  = st.sidebar.multiselect("State", txn_df["State"].unique() if "State" in txn_df.columns else [])
+    device_filter = st.sidebar.multiselect(
+        "Device",
+        options=txn_df["device_used"].unique() if "device_used" in txn_df.columns else [],
+        key="device"
+    )
+    state_filter = st.sidebar.multiselect(
+        "State", 
+        options=txn_df["State"].unique() if "State" in txn_df.columns else [],
+        key="state"
+    )
 
 date_range = st.sidebar.date_input(
     "Application Date Range",
-    [loan_df["application_date"].min(), loan_df["application_date"].max()]
+    value=[loan_df["application_date"].min(), loan_df["application_date"].max()],
+    key="date_range"
 )
 
-# Apply filters
+# ── Apply filters (Keep your existing logic here) ──────────────────────────
 filtered_loans = loan_df.copy()
 filtered_txns  = txn_df.copy() if has_txns else None
 
@@ -140,10 +178,13 @@ if employment_filter:
     filtered_loans = filtered_loans[filtered_loans["employment_status"].isin(employment_filter)]
 if gender_filter:
     filtered_loans = filtered_loans[filtered_loans["gender"].isin(gender_filter)]
-if len(date_range) == 2:
+
+# Date logic needs a check for the reset state
+if isinstance(date_range, list) and len(date_range) == 2:
     s, e = pd.to_datetime(date_range[0]), pd.to_datetime(date_range[1])
     filtered_loans = filtered_loans[(filtered_loans["application_date"] >= s) &
                                     (filtered_loans["application_date"] <= e)]
+
 if has_txns:
     if device_filter and "device_used" in filtered_txns.columns:
         filtered_txns = filtered_txns[filtered_txns["device_used"].isin(device_filter)]
@@ -438,7 +479,7 @@ elif page == "Behavioral Risk Analysis":
 # ════════════════════════════════════════════════════════════════════════
 # PAGE 4 — ML Predictions & Model Performance
 # ════════════════════════════════════════════════════════════════════════
-elif page == "🤖 ML Predictions & Model Performance":
+elif page == "ML Predictions & Model Performance":
     st.title("🤖 ML Predictions & Model Performance")
 
     if not has_ml:
@@ -632,3 +673,442 @@ elif page == "🤖 ML Predictions & Model Performance":
         top_risk_display["Risk Score (%)"] = top_risk_display["Risk Score (%)"].apply(
             lambda x: f"{x:.1f}%")
         st.dataframe(top_risk_display, use_container_width=True)
+
+
+# ════════════════════════════════════════════════════════════════════════
+# PAGE 5 — Real-Time Risk Scanner
+# ════════════════════════════════════════════════════════════════════════
+elif page == "⚡ Real-Time Risk Scanner":
+    st.title("⚡ Real-Time Risk Scanner")
+    st.markdown("Live fraud probability measurement for customers and manual loan/transaction inputs.")
+    st.markdown("---")
+
+    # ── Helper: draw a gauge chart ────────────────────────────────────────
+    def fraud_gauge(title: str, prob: float, height: int = 260) -> go.Figure:
+        if prob < 30:
+            color = "#2ecc71"
+            zone  = "Low Risk"
+        elif prob < 60:
+            color = "#f39c12"
+            zone  = "Medium Risk"
+        elif prob < 80:
+            color = "#e67e22"
+            zone  = "High Risk"
+        else:
+            color = "#e74c3c"
+            zone  = "Critical"
+
+        fig = go.Figure(go.Indicator(
+            mode="gauge+number+delta",
+            value=round(prob, 1),
+            number={"suffix": "%", "font": {"size": 36, "color": color}},
+            title={"text": f"<b>{title}</b><br><span style='font-size:13px;color:{color}'>{zone}</span>",
+                   "font": {"size": 14}},
+            delta={"reference": 50, "increasing": {"color": "#e74c3c"},
+                   "decreasing": {"color": "#2ecc71"}},
+            gauge={
+                "axis": {"range": [0, 100], "tickwidth": 1, "tickcolor": "gray",
+                         "tickvals": [0, 20, 40, 60, 80, 100]},
+                "bar":  {"color": color, "thickness": 0.3},
+                "bgcolor": "white",
+                "borderwidth": 2,
+                "bordercolor": "gray",
+                "steps": [
+                    {"range": [0,  30], "color": "#eafaf1"},
+                    {"range": [30, 60], "color": "#fef9e7"},
+                    {"range": [60, 80], "color": "#fef5ec"},
+                    {"range": [80,100], "color": "#fdedec"},
+                ],
+                "threshold": {
+                    "line": {"color": "#c0392b", "width": 4},
+                    "thickness": 0.75,
+                    "value": 50,
+                },
+            },
+        ))
+        fig.update_layout(height=height, margin=dict(l=20, r=20, t=60, b=10),
+                          paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)")
+        return fig
+
+    # ── Helper: risk badge HTML ───────────────────────────────────────────
+    def risk_badge(prob: float) -> str:
+        if prob < 30:
+            return f"<span style='background:#2ecc71;color:white;padding:3px 10px;border-radius:12px;font-weight:bold'>✅ Low ({prob:.1f}%)</span>"
+        elif prob < 60:
+            return f"<span style='background:#f39c12;color:white;padding:3px 10px;border-radius:12px;font-weight:bold'>⚠️ Medium ({prob:.1f}%)</span>"
+        elif prob < 80:
+            return f"<span style='background:#e67e22;color:white;padding:3px 10px;border-radius:12px;font-weight:bold'>🔶 High ({prob:.1f}%)</span>"
+        else:
+            return f"<span style='background:#e74c3c;color:white;padding:3px 10px;border-radius:12px;font-weight:bold'>🚨 Critical ({prob:.1f}%)</span>"
+
+    # ════════════════════════════════════════════════════════════════════
+    # TAB LAYOUT
+    # ════════════════════════════════════════════════════════════════════
+    tab1, tab2 = st.tabs(["🔍 Customer Lookup", "🧪 Manual Risk Assessment"])
+
+    # ── TAB 1: Customer Lookup ────────────────────────────────────────────
+    with tab1:
+        st.markdown("#### Look up any customer's live fraud probability across all three models")
+
+        if not has_ml:
+            st.warning("ML outputs not found. Run `python pipeline_runner.py` first.")
+        else:
+            all_customers = sorted(loan_df["customer_id"].unique().tolist())
+            col_inp, col_btn = st.columns([4, 1])
+            with col_inp:
+                selected_cid = st.selectbox(
+                    "Select or type a Customer ID",
+                    options=all_customers,
+                    key="rt_customer_select"
+                )
+            with col_btn:
+                st.markdown("<br>", unsafe_allow_html=True)
+                scan_clicked = st.button("🔎 Scan", key="rt_scan_btn", use_container_width=True)
+
+            if scan_clicked or selected_cid:
+                cid = selected_cid
+                st.markdown("---")
+
+                # ── Gather scores from ML outputs ──────────────────────
+                loan_prob, txn_prob, risk_prob = None, None, None
+                loan_count, txn_count = 0, 0
+
+                if loan_pred is not None:
+                    cust_loans = loan_pred[loan_pred["customer_id"].astype(str) == str(cid)]
+                    if len(cust_loans):
+                        loan_prob  = cust_loans["fraud_probability"].mean()
+                        loan_count = len(cust_loans)
+
+                if txn_pred is not None:
+                    cust_txns = txn_pred[txn_pred["customer_id"].astype(str) == str(cid)]
+                    if len(cust_txns):
+                        txn_prob  = cust_txns["fraud_probability"].mean()
+                        txn_count = len(cust_txns)
+
+                if risk_df is not None:
+                    match = risk_df[risk_df["customer_id_original"].astype(str) == str(cid)]
+                    if len(match):
+                        risk_prob = float(match["risk_score"].iloc[0])
+
+                # ── Combined score ──────────────────────────────────────
+                available = [p for p in [loan_prob, txn_prob, risk_prob] if p is not None]
+                if not available:
+                    st.error(f"No data found for Customer ID: **{cid}**")
+                else:
+                    # Weighted combined: risk model gets 40%, loan 35%, txn 25%
+                    weights = {"loan": 0.35, "txn": 0.25, "risk": 0.40}
+                    weighted_sum, weight_total = 0.0, 0.0
+                    if loan_prob is not None:
+                        weighted_sum  += loan_prob  * weights["loan"]
+                        weight_total  += weights["loan"]
+                    if txn_prob is not None:
+                        weighted_sum  += txn_prob   * weights["txn"]
+                        weight_total  += weights["txn"]
+                    if risk_prob is not None:
+                        weighted_sum  += risk_prob  * weights["risk"]
+                        weight_total  += weights["risk"]
+                    combined_prob = weighted_sum / weight_total if weight_total else 0
+
+                    # ── Customer profile ────────────────────────────────
+                    cust_info = loan_df[loan_df["customer_id"].astype(str) == str(cid)]
+                    st.markdown(f"### Customer: `{cid}`   {risk_badge(combined_prob)}", unsafe_allow_html=True)
+
+                    if len(cust_info):
+                        ci = cust_info.iloc[0]
+                        p1, p2, p3, p4, p5 = st.columns(5)
+                        p1.metric("Age",            ci.get("applicant_age", "N/A"))
+                        p2.metric("Employment",     ci.get("employment_status", "N/A"))
+                        p3.metric("CIBIL Score",    ci.get("cibil_score", "N/A"))
+                        p4.metric("Loan Applications", loan_count)
+                        p5.metric("Transactions",   txn_count if txn_count else "N/A")
+
+                    st.markdown("<br>", unsafe_allow_html=True)
+
+                    # ── Gauges row ──────────────────────────────────────
+                    g_cols = st.columns(4)
+                    with g_cols[0]:
+                        st.plotly_chart(fraud_gauge("Combined Risk Score", combined_prob),
+                                        use_container_width=True)
+                    with g_cols[1]:
+                        if loan_prob is not None:
+                            st.plotly_chart(fraud_gauge("Loan Fraud Model", loan_prob),
+                                            use_container_width=True)
+                        else:
+                            st.info("No loan data")
+                    with g_cols[2]:
+                        if txn_prob is not None:
+                            st.plotly_chart(fraud_gauge("Transaction Fraud Model", txn_prob),
+                                            use_container_width=True)
+                        else:
+                            st.info("No transaction data")
+                    with g_cols[3]:
+                        if risk_prob is not None:
+                            st.plotly_chart(fraud_gauge("Combined Risk Model", risk_prob),
+                                            use_container_width=True)
+                        else:
+                            st.info("No risk score")
+
+                    # ── Probability timeline (loan applications) ────────
+                    if loan_pred is not None and len(cust_loans) > 1:
+                        st.markdown("#### 📅 Loan Fraud Probability — Application History")
+                        loan_timeline = cust_loans.merge(
+                            loan_df[["application_id","application_date","loan_type","loan_amount_requested"]],
+                            on="application_id", how="left"
+                        ).sort_values("application_date")
+                        fig_tl = px.line(
+                            loan_timeline, x="application_date", y="fraud_probability",
+                            markers=True,
+                            title=f"Loan Fraud Probability Over Time — Customer {cid}",
+                            labels={"fraud_probability": "Fraud Probability (%)",
+                                    "application_date": "Application Date"},
+                            color_discrete_sequence=["#e74c3c"]
+                        )
+                        fig_tl.add_hline(y=50, line_dash="dash", line_color="gray",
+                                         annotation_text="Decision Threshold (50%)")
+                        fig_tl.update_yaxes(range=[0, 105])
+                        st.plotly_chart(fig_tl, use_container_width=True)
+
+                    # ── Transaction fraud distribution ──────────────────
+                    if txn_pred is not None and txn_prob is not None and len(cust_txns) > 0:
+                        st.markdown("#### 💳 Transaction Fraud Probability Distribution")
+                        t_col1, t_col2 = st.columns(2)
+                        with t_col1:
+                            fig_th = px.histogram(
+                                cust_txns, x="fraud_probability", nbins=20,
+                                color="predicted_fraud",
+                                title="Transaction Fraud Probability Histogram",
+                                labels={"fraud_probability": "Fraud Prob (%)",
+                                        "predicted_fraud": "Predicted Fraud"},
+                                color_discrete_map={0: "#2ecc71", 1: "#e74c3c"}
+                            )
+                            st.plotly_chart(fig_th, use_container_width=True)
+                        with t_col2:
+                            band_counts = pd.cut(
+                                cust_txns["fraud_probability"],
+                                bins=[0, 30, 60, 80, 100],
+                                labels=["Low (0-30)", "Medium (30-60)",
+                                        "High (60-80)", "Critical (80-100)"]
+                            ).value_counts().reset_index()
+                            band_counts.columns = ["Band", "Count"]
+                            fig_bp = px.bar(
+                                band_counts, x="Band", y="Count",
+                                color="Band",
+                                color_discrete_map={
+                                    "Low (0-30)":      "#2ecc71",
+                                    "Medium (30-60)":  "#f39c12",
+                                    "High (60-80)":    "#e67e22",
+                                    "Critical (80-100)": "#e74c3c"
+                                },
+                                title="Transaction Risk Bands",
+                                labels={"Count": "# Transactions"}
+                            )
+                            fig_bp.update_layout(showlegend=False)
+                            st.plotly_chart(fig_bp, use_container_width=True)
+
+                    # ── Raw top-risk transactions ───────────────────────
+                    if txn_pred is not None and txn_prob is not None and len(cust_txns) > 0:
+                        st.markdown("#### ⚠️ Top Risky Transactions for This Customer")
+                        top_cust_txns = cust_txns.sort_values("fraud_probability", ascending=False).head(10)
+                        if txn_df is not None:
+                            top_cust_txns = top_cust_txns.merge(
+                                txn_df[["transaction_id","transaction_type",
+                                        "transaction_amount","merchant_category",
+                                        "transaction_date","transaction_status"]],
+                                on="transaction_id", how="left"
+                            )
+                        top_cust_txns["fraud_probability"] = top_cust_txns["fraud_probability"].apply(
+                            lambda x: f"{x:.1f}%")
+                        show_cols = [c for c in ["transaction_id","transaction_type",
+                                                  "transaction_amount","merchant_category",
+                                                  "transaction_date","transaction_status",
+                                                  "fraud_probability","predicted_fraud"]
+                                     if c in top_cust_txns.columns]
+                        st.dataframe(top_cust_txns[show_cols], use_container_width=True)
+
+    # ── TAB 2: Manual Risk Assessment ─────────────────────────────────────
+    with tab2:
+        st.markdown("#### Fill in applicant/transaction details to get an instant heuristic fraud probability")
+        st.caption("This uses a rule-based scoring engine derived from the trained model's feature importance weights.")
+
+        st.markdown("---")
+        st.markdown("##### 🏦 Loan Application Features")
+        f1, f2, f3 = st.columns(3)
+        with f1:
+            m_loan_type = st.selectbox("Loan Type",
+                options=sorted(loan_df["loan_type"].unique().tolist()), key="m_loan_type")
+            m_loan_amt  = st.number_input("Loan Amount Requested (₹)",
+                min_value=1000, max_value=10_000_000, value=200000, step=5000, key="m_loan_amt")
+            m_income    = st.number_input("Monthly Income (₹)",
+                min_value=1000, max_value=500_000, value=30000, step=1000, key="m_income")
+        with f2:
+            m_dti       = st.slider("Debt-to-Income Ratio (%)", 0, 120, 35, key="m_dti")
+            m_cibil     = st.slider("CIBIL Score", 300, 900, 650, key="m_cibil")
+            m_age       = st.slider("Applicant Age", 18, 80, 35, key="m_age")
+        with f3:
+            m_emp       = st.selectbox("Employment Status",
+                options=sorted(loan_df["employment_status"].unique().tolist()), key="m_emp")
+            m_loan_status = st.selectbox("Loan Status",
+                options=sorted(loan_df["loan_status"].unique().tolist()), key="m_loan_status")
+            m_gender    = st.selectbox("Gender",
+                options=sorted(loan_df["gender"].unique().tolist()), key="m_gender")
+
+        st.markdown("##### 💳 Transaction Profile")
+        t1, t2, t3 = st.columns(3)
+        with t1:
+            m_txn_amt   = st.number_input("Avg Transaction Amount (₹)",
+                min_value=0, max_value=500_000, value=5000, step=500, key="m_txn_amt")
+            m_txn_count = st.number_input("Transaction Count (last 30 days)",
+                min_value=0, max_value=500, value=10, key="m_txn_count")
+        with t2:
+            m_intl      = st.checkbox("International Transaction", key="m_intl")
+            m_device    = st.selectbox("Device Used",
+                options=(sorted(txn_df["device_used"].unique().tolist())
+                         if has_txns and "device_used" in txn_df.columns
+                         else ["Mobile", "Desktop", "Tablet"]),
+                key="m_device")
+        with t3:
+            m_merch     = st.selectbox("Merchant Category",
+                options=(sorted(txn_df["merchant_category"].unique().tolist())
+                         if has_txns and "merchant_category" in txn_df.columns
+                         else ["Retail", "Electronics", "Travel", "Food", "Other"]),
+                key="m_merch")
+            m_hour      = st.slider("Transaction Hour (0-23)", 0, 23, 14, key="m_hour")
+
+        st.markdown("<br>", unsafe_allow_html=True)
+        assess_btn = st.button("⚡ Assess Fraud Risk", key="assess_btn", type="primary",
+                               use_container_width=True)
+
+        if assess_btn:
+            st.markdown("---")
+
+            # ── Heuristic scoring engine ────────────────────────────────
+            # Each rule returns a risk delta in [-15, +25] range
+            score = 35.0  # baseline
+
+            # CIBIL: lower = riskier
+            if m_cibil < 500:     score += 25
+            elif m_cibil < 600:   score += 15
+            elif m_cibil < 700:   score += 5
+            elif m_cibil > 800:   score -= 10
+            elif m_cibil > 750:   score -= 5
+
+            # DTI: higher = riskier
+            if m_dti > 80:        score += 25
+            elif m_dti > 60:      score += 18
+            elif m_dti > 40:      score += 10
+            elif m_dti > 35:      score += 5
+            elif m_dti < 20:      score -= 8
+
+            # Loan-to-income ratio
+            lti = m_loan_amt / max(m_income, 1)
+            if lti > 50:          score += 20
+            elif lti > 30:        score += 12
+            elif lti > 15:        score += 6
+            elif lti < 5:         score -= 5
+
+            # Employment status
+            risky_emp = {"Unemployed", "Self-employed", "Part-time"}
+            if any(r.lower() in m_emp.lower() for r in risky_emp): score += 12
+            elif "permanent" in m_emp.lower() or "salaried" in m_emp.lower(): score -= 8
+
+            # Age extremes
+            if m_age < 22 or m_age > 68:  score += 8
+            elif 30 <= m_age <= 55:        score -= 4
+
+            # Loan status flags
+            if "fraud" in m_loan_status.lower():    score += 30
+            elif "rejected" in m_loan_status.lower(): score += 10
+            elif "approved" in m_loan_status.lower(): score -= 5
+
+            # Transaction signals
+            if m_intl:             score += 10
+            if m_hour < 6:         score += 12   # late-night activity
+            elif m_hour > 22:      score += 8
+
+            # High transaction amount relative to income
+            if m_txn_amt > m_income * 0.5:  score += 15
+            elif m_txn_amt > m_income * 0.2: score += 7
+
+            # High velocity
+            if m_txn_count > 100:  score += 12
+            elif m_txn_count > 50: score += 6
+
+            # Risky merchant
+            risky_merchants = {"electronics", "crypto", "gambling", "travel", "jewelry"}
+            if any(r in m_merch.lower() for r in risky_merchants): score += 8
+
+            score = max(0.0, min(100.0, score))
+
+            # Sub-scores
+            loan_sub_score = max(0, min(100, 35 + (
+                (25 if m_cibil < 500 else 15 if m_cibil < 600 else 5 if m_cibil < 700 else -10 if m_cibil > 800 else -5 if m_cibil > 750 else 0) +
+                (25 if m_dti > 80 else 18 if m_dti > 60 else 10 if m_dti > 40 else 5 if m_dti > 35 else -8 if m_dti < 20 else 0) +
+                (20 if lti > 50 else 12 if lti > 30 else 6 if lti > 15 else -5 if lti < 5 else 0) +
+                (12 if any(r.lower() in m_emp.lower() for r in risky_emp) else -8 if ("permanent" in m_emp.lower() or "salaried" in m_emp.lower()) else 0)
+            )))
+
+            txn_sub_score = max(0, min(100, 35 + (
+                (10 if m_intl else 0) +
+                (12 if m_hour < 6 else 8 if m_hour > 22 else 0) +
+                (15 if m_txn_amt > m_income * 0.5 else 7 if m_txn_amt > m_income * 0.2 else 0) +
+                (12 if m_txn_count > 100 else 6 if m_txn_count > 50 else 0) +
+                (8 if any(r in m_merch.lower() for r in risky_merchants) else 0)
+            )))
+
+            # ── Results ─────────────────────────────────────────────────
+            st.markdown(f"### Assessment Result   {risk_badge(score)}", unsafe_allow_html=True)
+
+            g1, g2, g3 = st.columns(3)
+            with g1:
+                st.plotly_chart(fraud_gauge("Overall Fraud Risk", score, height=280),
+                                use_container_width=True)
+            with g2:
+                st.plotly_chart(fraud_gauge("Loan Risk Score", float(loan_sub_score), height=280),
+                                use_container_width=True)
+            with g3:
+                st.plotly_chart(fraud_gauge("Transaction Risk Score", float(txn_sub_score), height=280),
+                                use_container_width=True)
+
+            # ── Feature contribution breakdown ──────────────────────────
+            st.markdown("#### 📊 Risk Factor Breakdown")
+            factors = {
+                "CIBIL Score":           max(0, 25 - (m_cibil - 300) / 600 * 25),
+                "Debt-to-Income Ratio":  min(25, m_dti * 25 / 120),
+                "Loan-to-Income Ratio":  min(20, lti),
+                "Employment Risk":       12 if any(r.lower() in m_emp.lower() for r in risky_emp) else 0,
+                "Transaction Velocity":  12 if m_txn_count > 100 else 6 if m_txn_count > 50 else 0,
+                "Off-hours Activity":    12 if m_hour < 6 else 8 if m_hour > 22 else 0,
+                "International Txn":     10 if m_intl else 0,
+                "High Txn Amount":       15 if m_txn_amt > m_income * 0.5 else 7 if m_txn_amt > m_income * 0.2 else 0,
+                "Risky Merchant":        8 if any(r in m_merch.lower() for r in risky_merchants) else 0,
+                "Age Profile":           8 if (m_age < 22 or m_age > 68) else 0,
+            }
+            factor_df = pd.DataFrame(
+                [{"Factor": k, "Risk Contribution": round(v, 1)} for k, v in factors.items()]
+            ).sort_values("Risk Contribution", ascending=True)
+
+            fig_factors = px.bar(
+                factor_df, x="Risk Contribution", y="Factor",
+                orientation="h",
+                title="Risk Factor Contributions",
+                color="Risk Contribution",
+                color_continuous_scale=["#2ecc71", "#f39c12", "#e74c3c"],
+                labels={"Risk Contribution": "Risk Weight"}
+            )
+            fig_factors.update_layout(
+                coloraxis_showscale=False,
+                height=380,
+                margin=dict(l=10, r=10, t=40, b=10)
+            )
+            st.plotly_chart(fig_factors, use_container_width=True)
+
+            # ── Recommended action ──────────────────────────────────────
+            st.markdown("#### 🧭 Recommended Action")
+            if score >= 80:
+                st.error("🚨 **BLOCK / FLAG FOR IMMEDIATE REVIEW** — Critical fraud probability. Escalate to fraud team before processing.")
+            elif score >= 60:
+                st.warning("🔶 **MANUAL REVIEW REQUIRED** — High risk. Require additional verification documents and enhanced KYC.")
+            elif score >= 30:
+                st.info("⚠️ **PROCEED WITH CAUTION** — Medium risk. Apply standard monitoring and consider lower initial credit limit.")
+            else:
+                st.success("✅ **LOW RISK — APPROVE** — Standard processing. No additional verification needed.")
